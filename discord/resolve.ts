@@ -1,6 +1,3 @@
-import dotenv from "dotenv";
-dotenv.config();
-
 if (!process.env.APPLICATION_ID) {
   throw new Error(
     "🍂 The environment is not properly equipped to handle this."
