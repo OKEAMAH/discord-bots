@@ -7,7 +7,7 @@ import getRawBody from "raw-body";
 
 import { Contract, providers } from "ethers";
 
-import erc20Abi from "./erc20.json";
+import { abi } from "./erc20";
 import { Wallet } from "ethers";
 import { utils } from "ethers";
 import dotenv from "dotenv";
@@ -124,10 +124,10 @@ async function call(network, address) {
   const signer = new Wallet(process.env.FAUCET_PRIVATE_KEY, provider);
 
   const mockUSDCAddress = "0x097B212EFc307B102B37889Bede934EEe74Cda27";
-  const mockUSDCContract = new Contract(mockUSDCAddress, erc20Abi, signer);
+  const mockUSDCContract = new Contract(mockUSDCAddress, abi, signer);
 
   const mockUNIAddress = "0x81629B9CCe9C92ec6706Acc9d9b7A7d39510985F";
-  const mockUNIContract = new Contract(mockUNIAddress, erc20Abi, signer);
+  const mockUNIContract = new Contract(mockUNIAddress, abi, signer);
 
   const usdcTransferCall = await mockUSDCContract.transfer(address, 1);
   const uniTransferCall = await mockUNIContract.transfer(address, 1);
