@@ -10,6 +10,9 @@ import { Contract, providers } from "ethers";
 import { abi } from "./erc20";
 import { Wallet } from "ethers";
 import { utils } from "ethers";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 export default async (request, response) => {
   if (request.method === "POST") {
