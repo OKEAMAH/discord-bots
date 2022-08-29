@@ -3,7 +3,6 @@ import {
   InteractionType,
   verifyKey,
 } from "discord-interactions";
-import getRawBody from "raw-body";
 
 import { Contract, providers } from "ethers";
 
@@ -11,31 +10,13 @@ import { abi } from "./erc20";
 import { Wallet } from "ethers";
 import { utils } from "ethers";
 import dotenv from "dotenv";
+import { Readable } from "stream";
 
 dotenv.config();
 
-export default async (request, response) => {
+const handleInteraction = async (request, response) => {
   if (request.method === "POST") {
-    const signature = request.headers["x-signature-ed25519"];
-    const timestamp = request.headers["x-signature-timestamp"];
-    const rawBody = await getRawBody(request);
-
-    if (!process.env.PUBLIC_KEY) {
-      throw new Error("🍂 Add PUBLIC_KEY to the environment.");
-    }
-    const isValidRequest = verifyKey(
-      rawBody,
-      signature,
-      timestamp,
-      process.env.PUBLIC_KEY
-    );
-
-    if (!isValidRequest) {
-      console.error("Invalid Request");
-      return response.status(401).send({ error: "Bad request signature" });
-    }
-
-    const message = request.body;
+    const message = await validateRequest(request, response);
 
     if (message.type === InteractionType.PING) {
       console.log("Handling Ping request");
@@ -45,6 +26,7 @@ export default async (request, response) => {
     } else if (message.type === InteractionType.APPLICATION_COMMAND) {
       switch (message.data.name.toLowerCase()) {
         case "faucet":
+          console.error("Faucet Command");
           handleFaucetRequest(message, response);
           break;
         default:
@@ -59,7 +41,25 @@ export default async (request, response) => {
   }
 };
 
-const validateParameters = (address, network, userId) => {
+const handleFaucetRequest = async (message, response) => {
+  const [address, network, userId] = validateParameters(message);
+  const [usdcTx, uniTx] = await call(network, address);
+  const data = {
+    content: `🌳 GM, <@${userId}>. We've dripped some tokens into your wallet at ${address} on the ${network} network. Bright growing.
+
+<https://rinkeby.etherscan.io/tx/${usdcTx.hash}>`,
+  };
+
+  return response.status(200).send({
+    type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+    data,
+  });
+};
+
+const validateParameters = (message) => {
+  const address = message.data.options[0].value;
+  const network = message.data.options[1].value;
+  const userId = message.member.user.id;
   if (!utils.isAddress(address)) {
     throw new Error("🍂 I couldn't verify that address.");
   }
@@ -69,13 +69,42 @@ const validateParameters = (address, network, userId) => {
   if (!userId) {
     throw new Error("🍂 You're able to request new funds every 24 hours.");
   }
+  return [address, network, userId];
 };
 
+const validateRequest = async (request, response) => {
+  const signature = request.headers["x-signature-ed25519"];
+  const timestamp = request.headers["x-signature-timestamp"];
+  const buf = await buffer(request);
+  const rawBody = buf.toString("utf8");
+
+  if (!process.env.PUBLIC_KEY) {
+    throw new Error("🍂 Add PUBLIC_KEY to the environment.");
+  }
+  const isValidRequest = verifyKey(
+    rawBody,
+    signature,
+    timestamp,
+    process.env.PUBLIC_KEY
+  );
+
+  if (!isValidRequest) {
+    console.error("Invalid Request");
+    await response.status(401).send({ error: "Bad request signature" });
+    throw new Error("Invalid Request");
+  }
+
+  return JSON.parse(rawBody);
+};
+
+// Used to defer the message. No more fetch calls can be sent after.
 const sendAcknowledgement = async (response) => {
   await response.status(200).send({
     type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
   });
 };
+
+// Used to edit the deffered message.
 const sendFollowUp = async (token, content) => {
   await fetch(
     `https://discord.com/api/v10/webhooks/${process.env.APPLICATION_ID}/${token}`,
@@ -87,29 +116,6 @@ const sendFollowUp = async (token, content) => {
       body: JSON.stringify({ content }),
     }
   );
-};
-const handleFaucetRequest = async (message, response) => {
-  const address = message.data.options[0].value;
-  const network = message.data.options[1].value;
-  const userId = message.member.user.id;
-  validateParameters(address, network, userId);
-
-  const token = message.token;
-  console.log(message);
-  console.log("before ack");
-  await sendAcknowledgement(response);
-  console.log("after ack");
-  const content = {
-    content: `GM, <@${userId}>. We've dripped some tokens into your wallet at ${address} on ${network} network. Happy growing 🌳.`,
-  };
-  await sendFollowUp(token, content);
-  // const [usdcTx, uniTx] = await call(network, address);
-
-  // response.status(200).send({
-  //   type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-  //   data,
-  // });
-  console.log("End Faucet Request");
 };
 
 const rpcUrls = {
@@ -129,12 +135,27 @@ async function call(network, address) {
   const mockUNIAddress = "0x81629B9CCe9C92ec6706Acc9d9b7A7d39510985F";
   const mockUNIContract = new Contract(mockUNIAddress, abi, signer);
 
-  const usdcTransferCall = await mockUSDCContract.transfer(address, 1);
-  const uniTransferCall = await mockUNIContract.transfer(address, 1);
-  console.log(Object.keys(usdcTransferCall));
-  return ["meow", "bark"];
+  const usdcTransferCall = await mockUSDCContract.transfer(
+    address,
+    utils.parseUnits("1000000", 6)
+  );
+
+  // TODO: make this a single contract call.
+  return [usdcTransferCall, "meow"];
+}
+
+async function buffer(readable: Readable) {
+  const chunks = [];
+  for await (const chunk of readable) {
+    chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+  }
+  return Buffer.concat(chunks);
 }
 
 export const config = {
-  runtime: "experimental-edge",
+  api: {
+    bodyParser: false,
+  },
 };
+
+export default handleInteraction;

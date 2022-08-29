@@ -21,4 +21,3 @@ The `resolve` command tries to resolve an interaction with a given token. At the
 However, after responding to the request, the serverless function ends.
 
 One potential work-around is using the new edge serverless functions, and that can be seen in the config for 🪷 Lotus, however the total execution time is 5 seconds, which doesn't seem to be long enough to send both requests.
-
