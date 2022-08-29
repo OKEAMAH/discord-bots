@@ -1,5 +1,6 @@
 import { commands } from "./list.js";
 import dotenv from "dotenv";
+
 dotenv.config();
 if (!process.env.TOKEN || !process.env.APPLICATION_ID) {
   throw new Error(
@@ -15,22 +16,22 @@ if (!command) {
     `🍂 The command to add, ${process.argv[2]}, has been planted, but we can't find it's instructions.`
   );
 }
-
-if (typeof fetch === "undefined") throw new Error("Use Node version 18.");
-
-const response = await fetch(
-  `https://discord.com/api/v10/applications/${process.env.APPLICATION_ID}/commands`,
-  {
-    headers: {
-      Authorization: `Bot ${process.env.TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    method: "POST",
-    body: JSON.stringify(command),
+const registerCommand = async () => {
+  const response = await fetch(
+    `https://discord.com/api/v10/applications/${process.env.APPLICATION_ID}/commands`,
+    {
+      headers: {
+        Authorization: `Bot ${process.env.TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      method: "POST",
+      body: JSON.stringify(command),
+    }
+  );
+  if (response.ok) {
+    console.log(`🪷 Beautiful. The command was added or updated.`);
+  } else {
+    console.log((await response.json()).errors);
   }
-);
-if (response.ok) {
-  console.log(`🪷 Beautiful. The command was added or updated.`);
-} else {
-  console.log((await response.json()).errors);
-}
+};
+registerCommand();

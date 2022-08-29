@@ -16,5 +16,10 @@
     "incremental": true
   },
   "exclude": ["node_modules"],
-  "include": ["**/*.ts", "**/*.tsx"]
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "pages/index.js",
+    "pages/api/lotus/index.ts"
+  ]
 }
