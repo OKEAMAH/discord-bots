@@ -136,10 +136,10 @@ async function sendTokens(network, address) {
   const provider = new providers.JsonRpcProvider(rpcUrls[network]);
   const signer = new Wallet(process.env.FAUCET_PRIVATE_KEY, provider);
 
-  const mockUSDCAddress = "0x5a2D26D95b07C28d735ff76406bd82fE64222Dc1";
+  const mockUSDCAddress = process.env.MOCK_PAYMENT_TOKEN_ADDRESS;
   const mockUSDCContract = new Contract(mockUSDCAddress, abi, signer);
 
-  const mockUNIAddress = "0x1ee2926BDd6c0A34207BAEb7B8fAa12cdE0BC315";
+  const mockUNIAddress = process.env.MOCK_BIDDING_TOKEN_ADDRESS;
   const mockUNIContract = new Contract(mockUNIAddress, abi, signer);
 
   const usdcTransferCall = await mockUSDCContract.transfer(
