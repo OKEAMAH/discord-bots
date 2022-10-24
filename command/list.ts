@@ -17,8 +17,8 @@ export const commands = {
         required: false,
         choices: [
           {
-            name: "Rinkeby",
-            value: "rinkeby",
+            name: "Görli",
+            value: "goerli",
           },
         ],
       },

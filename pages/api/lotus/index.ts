@@ -15,6 +15,7 @@ import { Readable } from "stream";
 dotenv.config();
 
 const handleInteraction = async (request, response) => {
+  console.time("Interaction");
   if (request.method === "POST") {
     const message = await validateRequest(request, response);
 
@@ -26,8 +27,10 @@ const handleInteraction = async (request, response) => {
     } else if (message.type === InteractionType.APPLICATION_COMMAND) {
       switch (message.data.name.toLowerCase()) {
         case "faucet":
-          console.error("Faucet Command");
+          console.log("Faucet Command");
+          console.time("Faucet Request");
           handleFaucetRequest(message, response);
+          console.timeEnd("Faucet Request");
           break;
         default:
           console.error("Unknown Command");
@@ -39,15 +42,19 @@ const handleInteraction = async (request, response) => {
       response.status(400).send({ error: "Unknown Type" });
     }
   }
+  console.timeEnd("Interaction");
 };
 
 const handleFaucetRequest = async (message, response) => {
   const [address, network, userId] = validateParameters(message);
-  const [usdcTx, uniTx] = await call(network, address);
+  console.time("Eth Call");
+  const [usdcTx, uniTx] = await sendTokens(network, address);
+  console.timeEnd("Eth Call");
   const data = {
     content: `🌳 GM, <@${userId}>. We've dripped some tokens into your wallet at ${address} on the ${network} network. Bright growing.
 
-<https://rinkeby.etherscan.io/tx/${usdcTx.hash}>`,
+USDC: <https://goerli.etherscan.io/tx/${usdcTx.hash}>
+UNI: <https://goerli.etherscan.io/tx/${uniTx.hash}>`,
   };
 
   return response.status(200).send({
@@ -63,8 +70,8 @@ const validateParameters = (message) => {
   if (!utils.isAddress(address)) {
     throw new Error("🍂 I couldn't verify that address.");
   }
-  if (network != "rinkeby") {
-    throw new Error("🍂 Only the Rinkeby testnet is supported.");
+  if (network != "goerli") {
+    throw new Error("🍂 Only the Görli testnet is supported.");
   }
   if (!userId) {
     throw new Error("🍂 You're able to request new funds every 24 hours.");
@@ -119,20 +126,20 @@ const sendFollowUp = async (token, content) => {
 };
 
 const rpcUrls = {
-  rinkeby: process.env.RINKEBY_RPC_URL,
+  goerli: process.env.GOERLI_RPC_URL,
 };
 
-async function call(network, address) {
+async function sendTokens(network, address) {
   if (!process.env.FAUCET_PRIVATE_KEY) {
     throw new Error("🍂 Add FAUCET_PRIVATE_KEY to the environment.");
   }
   const provider = new providers.JsonRpcProvider(rpcUrls[network]);
   const signer = new Wallet(process.env.FAUCET_PRIVATE_KEY, provider);
 
-  const mockUSDCAddress = "0x097B212EFc307B102B37889Bede934EEe74Cda27";
+  const mockUSDCAddress = "0x5a2D26D95b07C28d735ff76406bd82fE64222Dc1";
   const mockUSDCContract = new Contract(mockUSDCAddress, abi, signer);
 
-  const mockUNIAddress = "0x81629B9CCe9C92ec6706Acc9d9b7A7d39510985F";
+  const mockUNIAddress = "0x1ee2926BDd6c0A34207BAEb7B8fAa12cdE0BC315";
   const mockUNIContract = new Contract(mockUNIAddress, abi, signer);
 
   const usdcTransferCall = await mockUSDCContract.transfer(
@@ -140,8 +147,13 @@ async function call(network, address) {
     utils.parseUnits("1000000", 6)
   );
 
+  const uniTransferCall = await mockUNIContract.transfer(
+    address,
+    utils.parseUnits("1000000", 18)
+  );
+
   // TODO: make this a single contract call.
-  return [usdcTransferCall, "meow"];
+  return [usdcTransferCall, uniTransferCall];
 }
 
 async function buffer(readable: Readable) {
