@@ -14,11 +14,11 @@ export const commands = {
         name: "network",
         description: "The Ethereum network.",
         type: 3,
-        required: false,
+        required: true,
         choices: [
           {
-            name: "Rinkeby",
-            value: "rinkeby",
+            name: "Görli",
+            value: "goerli",
           },
         ],
       },
