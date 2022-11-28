@@ -48,13 +48,17 @@ const handleInteraction = async (request, response) => {
 const handleFaucetRequest = async (message, response) => {
   const [address, network, userId] = validateParameters(message);
   console.time("Eth Call");
-  const [usdcTx, uniTx] = await sendTokens(network, address);
+  const [paymentTx, collateralTx] = await sendTokens(network, address);
   console.timeEnd("Eth Call");
   const data = {
     content: `🌳 GM, <@${userId}>. We've dripped some tokens into your wallet at ${address} on the ${network} network. Bright growing.
 
-USDC: <https://goerli.etherscan.io/tx/${usdcTx.hash}>
-UNI: <https://goerli.etherscan.io/tx/${uniTx.hash}>`,
+Payment Token (${
+      process.env.PAYMENT_TOKEN_SYMBOL || "💰"
+    }): <https://goerli.etherscan.io/tx/${paymentTx.hash}>
+Collateral Token (${
+      process.env.COLLATERAL_TOKEN_SYMBOL || "💰"
+    }): <https://goerli.etherscan.io/tx/${collateralTx.hash}>`,
   };
 
   return response.status(200).send({
@@ -136,24 +140,28 @@ async function sendTokens(network, address) {
   const provider = new providers.JsonRpcProvider(rpcUrls[network]);
   const signer = new Wallet(process.env.FAUCET_PRIVATE_KEY, provider);
 
-  const mockUSDCAddress = process.env.MOCK_PAYMENT_TOKEN_ADDRESS;
-  const mockUSDCContract = new Contract(mockUSDCAddress, abi, signer);
+  const mockPaymentAddress = process.env.MOCK_PAYMENT_TOKEN_ADDRESS;
+  const mockPaymentContract = new Contract(mockPaymentAddress, abi, signer);
 
-  const mockUNIAddress = process.env.MOCK_BIDDING_TOKEN_ADDRESS;
-  const mockUNIContract = new Contract(mockUNIAddress, abi, signer);
+  const mockCollateralAddress = process.env.MOCK_BIDDING_TOKEN_ADDRESS;
+  const mockCollateralContract = new Contract(
+    mockCollateralAddress,
+    abi,
+    signer
+  );
 
-  const usdcTransferCall = await mockUSDCContract.transfer(
+  const paymentTransferCall = await mockPaymentContract.transfer(
     address,
     utils.parseUnits("1000000", 6)
   );
 
-  const uniTransferCall = await mockUNIContract.transfer(
+  const collateralTransferCall = await mockCollateralContract.transfer(
     address,
     utils.parseUnits("1000000", 18)
   );
 
   // TODO: make this a single contract call.
-  return [usdcTransferCall, uniTransferCall];
+  return [paymentTransferCall, collateralTransferCall];
 }
 
 async function buffer(readable: Readable) {
