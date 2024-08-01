@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
-    "discord-interactions": "^2.0.2",
+    "discord-interactions": "^4.0.0",
     "dotenv": "^16.0.1",
     "ethers": "^6.0.0",
     "next": "14.2.5",
